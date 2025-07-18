@@ -30,11 +30,9 @@ const Country = ({ setDemography, selectedMaptype, setCountryCode, setDemoGraphI
       }
     );
     const populationData = await peopleData.json();
-    console.log(populationData, "Pop")
     const dataLen = populationData.data.populationCounts.length;
     const population = populationData.data.populationCounts[dataLen - 1].value;
     const year = populationData.data.populationCounts[dataLen - 1].year;
-    console.log(population, year, "Pop")
     setDemoGraphInfo({ population, year, country: value.country });
 
     if (onCountrySelect && value?.country) {

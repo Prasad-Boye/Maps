@@ -126,8 +126,7 @@ export const convertToPolygonFeatures = (geometry, properties) => {
       `&proximity=${lng},${lat}` +
       `&limit=10` +
       `&access_token=${accessToken}`;
-      const data = await fetchWithCache(url, {}, { persist: false, ttl: 1000 * 60 * 5 }); // 5 min memory cache
-      console.log(data, "data");
+      const data = await fetchWithCache(url, {}, { persist: false, ttl: 1000 * 60 * 5 });
       return data.features.map(feature => ({
         name: feature.properties.name,
         type: feature.properties.category,
