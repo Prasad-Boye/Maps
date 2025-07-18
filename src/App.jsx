@@ -12,6 +12,14 @@ const INITIAL_ZOOM = 1.25;
 const MAP_TYPES = ['Standard', 'Satellite', 'Population'];
 
 function App() {
+
+  const [showCountryAlert, setShowCountryAlert] = useState(false);
+  useEffect(() => {
+    if (showCountryAlert) {
+      const timer = setTimeout(() => setShowCountryAlert(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [showCountryAlert]);
   const [loadingMapData, setLoadingMapData] = useState(false);
   const mapRef = useRef();
   const mapContainerRef = useRef();
@@ -90,10 +98,21 @@ function App() {
             .setLngLat(place.coordinates)
             .addTo(mapRef.current);
           const popup = new mapboxgl.Popup({ offset: 25, closeButton: false, closeOnClick: false })
-            .setHTML(`<div><b>${place.name}</b><br/>${place.address || ''}</div>`);
+            .setHTML(`
+              <div style='position:relative;min-width:180px;'>
+                <span class='popup-close-btn' style='position:absolute;top:6px;right:10px;cursor:pointer;font-size:18px;font-weight:bold;' title='Close'>&times;</span>
+                <b>${place.name}</b><br/>${place.address || ''}
+              </div>
+            `);
           marker.getElement().addEventListener('mouseenter', () => {
             popup.addTo(mapRef.current);
             popup.setLngLat(place.coordinates);
+            setTimeout(() => {
+              const closeBtn = document.querySelector('.popup-close-btn');
+              if (closeBtn) {
+                closeBtn.onclick = () => popup.remove();
+              }
+            }, 0);
           });
           marker.getElement().addEventListener('mouseleave', () => {
             popup.remove();
@@ -104,6 +123,7 @@ function App() {
     }
 
     let mainMarkersRef = [];
+    let hoverPopup = null;
     function renderMainMarkers(selectedIdx = null) {
       mainMarkersRef.forEach(m => m.remove());
       mainMarkersRef = [];
@@ -113,10 +133,38 @@ function App() {
           .setLngLat([location.lng, location.lat])
           .addTo(mapRef.current);
         mainMarkersRef.push(marker);
+
+        marker.getElement().addEventListener('mouseenter', () => {
+          if (hoverPopup) hoverPopup.remove();
+          hoverPopup = new mapboxgl.Popup({ offset: 18, closeButton: false, closeOnClick: false })
+            .setLngLat([location.lng, location.lat])
+            .setHTML(`<div style='font-size:0.95em; font-weight:500;'>${location.name || ''}</div>`)
+            .addTo(mapRef.current);
+        });
+        marker.getElement().addEventListener('mouseleave', () => {
+          if (hoverPopup) hoverPopup.remove();
+          hoverPopup = null;
+        });
+
+        if (mapRef.current && !mapRef.current._hasBlurZoomPopupCleanup) {
+          mapRef.current.on('click', () => {
+            if (hoverPopup) hoverPopup.remove();
+            hoverPopup = null;
+          });
+          mapRef.current.on('zoom', () => {
+            if (hoverPopup) hoverPopup.remove();
+            hoverPopup = null;
+          });
+          mapRef.current._hasBlurZoomPopupCleanup = true;
+        }
         marker.getElement().addEventListener('click', async () => {
           renderMainMarkers(idx);
           mapRef.current.flyTo({ center: [location.lng, location.lat], zoom: 16 });
         });
+      });
+      mapRef.current.on('click', () => {
+        if (hoverPopup) hoverPopup.remove();
+        hoverPopup = null;
       });
     }
     mapRef.current.on('load', () => {
@@ -355,7 +403,12 @@ function App() {
           <Autocomplete
             options={MAP_TYPES}
             value={selectedMaptype}
-            onChange={(_, value) => setSelectedMaptype(value)}
+            onChange={(_, value) => {
+              setSelectedMaptype(value);
+              if (value === 'Population' && !demography) {
+                setShowCountryAlert(true);
+              }
+            }}
             sx={{ width: '100%', fontSize: '0.8rem', '.MuiInputBase-root': { fontSize: '0.8rem', minHeight: '32px' }, '.MuiAutocomplete-input': { fontSize: '0.8rem' }, '.MuiAutocomplete-option': { fontSize: '0.8rem', minHeight: '28px' } }}
             renderInput={(params) => (
               <TextField
@@ -384,6 +437,26 @@ function App() {
         </div>
       {selectedMaptype === 'Population' && (
         <style>{`.mapboxgl-marker.mapboxgl-marker-anchor-center { display: none !important; }`}</style>
+      )}
+      {showCountryAlert && (
+        <div style={{
+          position: 'fixed',
+          top: 24,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 2000,
+          background: '#1976d2',
+          color: 'white',
+          padding: '12px 32px',
+          borderRadius: 8,
+          fontSize: '1rem',
+          boxShadow: '0 2px 16px rgba(0,0,0,0.18)',
+          opacity: 1,
+          transition: 'opacity 0.8s',
+          pointerEvents: 'none',
+        }}>
+          Please select a country to see the population data
+        </div>
       )}
     </>
   );
