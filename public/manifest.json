@@ -1,0 +1,4 @@
+"web_accessible_resources": [{
+  "resources": ["*.png", "*.css", "*.js"],
+  "matches": ["<all_urls>"]
+}]
